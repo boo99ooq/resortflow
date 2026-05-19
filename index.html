@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#020617">
+    <title>ResortFlow - Night Shift</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #020617;
+            --card: #1e293b;
+            --border: rgba(255, 255, 255, 0.1);
+            --title: #94a3b8;
+            --accent: #38bdf8;
+            --urgent: #ef4444;
+            --problem: #f97316;
+            --working: #3b82f6;
+            --success: #22c55e;
+            --text-main: #f1f5f9;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; outline: none; }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg); color: var(--text-main);
+            height: 100vh; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        header {
+            padding: calc(env(safe-area-inset-top) + 16px) 16px 12px;
+            background: var(--bg); border-bottom: 2px solid #0f172a; flex-shrink: 0;
+        }
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            padding-bottom: 90px; /* Spazio per la barra nav */
+        }
+
+        nav {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #0f172a;
+            border-top: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            padding: 10px 10px calc(env(safe-area-inset-bottom) + 10px);
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .bento-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 24px;
+            padding: 16px; margin-bottom: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em;
+            color: var(--title); margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+        }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .stat-box { background: #0f172a; border-radius: 16px; padding: 12px 4px; text-align: center; border: 1px solid var(--border); }
+        .stat-val { font-size: 22px; font-weight: 900; display: block; line-height: 1; }
+        .stat-label { font-size: 8px; font-weight: 700; color: var(--title); text-transform: uppercase; margin-top: 4px; display: block; }
+
+        #room-display {
+            background: var(--bg); border: 2px solid #334155; border-radius: 16px;
+            height: 60px; display: flex; align-items: center; justify-content: center;
+            font-size: 32px; font-weight: 900; color: var(--accent); letter-spacing: 4px; margin-bottom: 12px;
+        }
+        .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .btn-key {
+            background: #334155; border: none; border-radius: 14px; color: white;
+            font-size: 22px; font-weight: 700; padding: 14px 0; cursor: pointer; transition: 0.1s;
+        }
+        .btn-key:active { background: #475569; transform: scale(0.95); }
+        .btn-key.clear { background: #7f1d1d; color: #fecaca; }
+
+        .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+        .btn-type {
+            background: #0f172a; border: 1px solid var(--border); border-radius: 16px;
+            padding: 12px 4px; display: flex; flex-direction: column; align-items: center;
+            gap: 4px; cursor: pointer; opacity: 0.4; pointer-events: none; transition: 0.2s;
+        }
+        .btn-type.active { opacity: 1; pointer-events: auto; }
+        .btn-type.active:active { transform: scale(0.95); background: var(--card); }
+        .btn-type .label { font-size: 11px; font-weight: 800; color: white; text-align: center; line-height: 1.1; }
+
+        .request-item {
+            display: flex; align-items: center; gap: 14px; padding: 14px;
+            border-radius: 20px; background: var(--card); border: 1px solid var(--border);
+            margin-bottom: 10px; position: relative;
+        }
+        .room-badge {
+            width: 54px; height: 54px; background: #3b82f6; border-radius: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: white; flex-shrink: 0; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .room-badge b { font-size: 20px; font-weight: 900; }
+        .room-badge span { font-size: 8px; font-weight: 700; opacity: 0.8; }
+
+        .req-info { flex: 1; min-width: 0; }
+        .req-info h3 { margin: 0; font-size: 15px; font-weight: 900; text-transform: uppercase; color: white; }
+        .req-meta { display: flex; align-items: center; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+        .tag { font-size: 8px; font-weight: 900; padding: 3px 8px; border-radius: 6px; text-transform: uppercase; }
+        .timer-val { font-size: 12px; font-weight: 900; color: var(--accent); }
+
+        .btn-action {
+            width: 48px; height: 48px; border-radius: 16px; border: none;
+            color: white; font-size: 20px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .btn-start { background: var(--working); box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
+        .btn-done { background: var(--success); box-shadow: 0 4px 10px rgba(34, 197, 94, 0.3); }
+        .btn-clear-all { background: #334155; margin-top: 10px; padding: 12px; border-radius: 16px; border: none; color: white; font-weight: 900; width: 100%; }
+
+        @keyframes pulse-overdue {
+            0% { border-color: var(--urgent); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            50% { border-color: #fca5a5; box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+            100% { border-color: var(--urgent); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+        }
+        .overdue { animation: pulse-overdue 1.5s infinite; border-width: 2px !important; }
+        .overdue .room-badge { background: var(--urgent) !important; }
+        .overdue .timer-val { color: var(--urgent); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(2, 6, 23, 0.95); z-index: 2000;
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-card {
+            background: var(--card); border: 1px solid var(--border); width: 100%;
+            max-width: 320px; border-radius: 28px; padding: 24px; text-align: center;
+        }
+        .priority-grid { display: grid; gap: 12px; margin-top: 20px; }
+        .btn-pri {
+            padding: 16px; border-radius: 16px; border: none; font-weight: 900;
+            text-transform: uppercase; font-size: 13px; cursor: pointer; color: white;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .pri-urg { background: #7f1d1d; border: 1px solid #ef4444; }
+        .pri-nor { background: #0f172a; border: 1px solid #334155; }
+        .pri-pia { background: #1e3a8a; border: 1px solid #3b82f6; }
+
+        input#custom-text {
+            width: 100%; background: #020617; border: 2px solid #334155;
+            border-radius: 14px; color: white; padding: 16px; font-size: 16px;
+            font-weight: 700; margin: 15px 0;
+        }
+
+        .nav-item {
+            background: transparent; border: none; color: #475569;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            font-size: 10px; font-weight: 900; text-transform: uppercase;
+        }
+        .nav-item.active { color: var(--accent); }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+        .nav-item.main { color: white; padding: 5px; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .report-copy-btn {
+            width: 100%; padding: 16px; background: var(--accent); color: #020617;
+            border: none; border-radius: 16px; font-weight: 900; text-transform: uppercase;
+            margin-top: 15px; cursor: pointer; font-size: 14px;
+        }
+        .delete-btn {
+            background: transparent; border: none; color: #7f1d1d; font-size: 18px;
+            cursor: pointer; width: 40px; height: 40px; border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- MODAL: Altro Testo -->
+<div id="modal-text" class="modal-overlay">
+    <div class="modal-card">
+        <div class="card-title">⌨️ COSA SERVE?</div>
+        <input type="text" id="custom-text" placeholder="es: 3 grucce, cuscino memory..." autocomplete="off">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+            <button class="btn-pri" style="background:#334155" onclick="closeModals()">Annulla</button>
+            <button class="btn-pri pri-nor" style="background:var(--accent); color:black" onclick="confirmCustomText()">Avanti</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: Priorità -->
+<div id="modal-priority" class="modal-overlay">
+    <div class="modal-card">
+        <div class="card-title">🚩 SCEGLI PRIORITÀ</div>
+        <div id="selected-type-label" style="font-size:18px; font-weight:900; margin:10px 0; color:var(--accent)">-</div>
+        <div class="priority-grid">
+            <button class="btn-pri pri-urg" onclick="finalizeAdd('Urgente')">🔴 URGENTE</button>
+            <button class="btn-pri pri-nor" onclick="finalizeAdd('Normale')">🟡 NORMALE</button>
+            <button class="btn-pri pri-pia" onclick="finalizeAdd('Pianificabile')">🔵 PIANIFICABILE</button>
+            <button class="btn-pri" style="background:transparent; color:#475569" onclick="closeModals()">Annulla</button>
+        </div>
+    </div>
+</div>
+
+<header>
+    <div style="display:flex; justify-content:space-between; align-items:center">
+        <h1 style="margin:0; font-size:24px; font-weight:900; color:var(--accent); letter-spacing:-1.5px">ResortFlow</h1>
+        <div id="header-clock" style="font-size:12px; font-weight:900; color:var(--title)">--:--</div>
+    </div>
+    <div class="stats-grid">
+        <div class="stat-box">
+            <span class="stat-val" id="stat-done">0</span>
+            <span class="stat-label">Completate</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-val" id="stat-pending" style="color:var(--urgent)">0</span>
+            <span class="stat-label">In Coda</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-val" id="stat-avg">0m</span>
+            <span class="stat-label">Tempo Medio</span>
+        </div>
+    </div>
+</header>
+
+<main>
+    <!-- VIEW: CODA -->
+    <div id="view-queue" class="view active">
+        <div class="card-title" style="margin-left:8px; display:flex; justify-content:space-between;">
+            <span>🔥 CODA ATTIVA</span>
+            <button onclick="clearCompleted()" style="background:#334155; border:none; border-radius:12px; padding:4px 12px; color:white; font-size:10px; font-weight:900;">ARCHIVIA TUTTE</button>
+        </div>
+        <div id="queue-list"></div>
+    </div>
+
+    <!-- VIEW: NUOVA -->
+    <div id="view-add" class="view">
+        <div class="bento-card">
+            <div class="card-title">📍 CAMERA</div>
+            <div id="room-display">---</div>
+            <div class="keypad">
+                <button class="btn-key" onclick="tapKey('1')">1</button>
+                <button class="btn-key" onclick="tapKey('2')">2</button>
+                <button class="btn-key" onclick="tapKey('3')">3</button>
+                <button class="btn-key" onclick="tapKey('4')">4</button>
+                <button class="btn-key" onclick="tapKey('5')">5</button>
+                <button class="btn-key" onclick="tapKey('6')">6</button>
+                <button class="btn-key" onclick="tapKey('7')">7</button>
+                <button class="btn-key" onclick="tapKey('8')">8</button>
+                <button class="btn-key" onclick="tapKey('9')">9</button>
+                <button class="btn-key clear" onclick="tapKey('C')">C</button>
+                <button class="btn-key" onclick="tapKey('0')">0</button>
+                <button class="btn-key" style="opacity:0.1">.</button>
+            </div>
+        </div>
+        <div class="bento-card">
+            <div class="card-title">⚡ SELEZIONA RICHIESTA (più frequenti)</div>
+            <div class="type-grid" id="type-list"></div>
+        </div>
+    </div>
+
+    <!-- VIEW: STORICO -->
+    <div id="view-history" class="view">
+        <div class="card-title" style="margin-left:8px">📜 STORICO COMPLETATE</div>
+        <div id="history-list"></div>
+        <div class="bento-card" style="margin-top:20px">
+            <div class="card-title">📊 REPORT VELOCE</div>
+            <div id="report-text" style="font-size:13px; color:var(--title); line-height:1.5"></div>
+            <button class="report-copy-btn" onclick="copyReport()">Copia Report Direttore</button>
+        </div>
+    </div>
+</main>
+
+<nav>
+    <button class="nav-item active" onclick="switchView('queue', this)">
+        <svg viewBox="0 0 24 24"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg>
+        Coda
+    </button>
+    <button class="nav-item main" onclick="switchView('add', this)">
+        <div style="background:var(--accent); width:50px; height:50px; border-radius:18px; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 12px rgba(56, 189, 248, 0.4)">
+            <svg viewBox="0 0 24 24" style="fill:#020617"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </div>
+    </button>
+    <button class="nav-item" onclick="switchView('history', this)">
+        <svg viewBox="0 0 24 24"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        Storico
+    </button>
+</nav>
+
+<script>
+    // RICHIESTE ORDINATE PER FREQUENZA
+    const TYPES = [
+        "Cuscini", "Bollitore", "Culla", "Set Spugne", 
+        "Ritiro Lav.", "Cons. Lav.", "Letto Extra", "Steamer", 
+        "Coperte/Piumini", "Stendino", "Grucce (quante?)", "Guasto", "ALTRO..."
+    ];
+
+    let state = {
+        requests: [],  // { id, room, label, priority, createdAt, status, completedAt? }
+        currentRoom: '',
+        pendingLabel: '',
+        lastBeep: null
+    };
+
+    function init() {
+        const saved = localStorage.getItem('resortflow_v4');
+        if (saved) state.requests = JSON.parse(saved);
+
+        const typeContainer = document.getElementById('type-list');
+        TYPES.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-type';
+            btn.innerHTML = `<span class="label">${t}</span>`;
+            btn.onclick = () => startAddRequest(t);
+            typeContainer.appendChild(btn);
+        });
+
+        render();
+        setInterval(render, 15000);
+        setInterval(updateClock, 1000);
+    }
+
+    function tapKey(k) {
+        if (k === 'C') state.currentRoom = '';
+        else if (state.currentRoom.length < 4) state.currentRoom += k;
+        document.getElementById('room-display').innerText = state.currentRoom || '---';
+        document.querySelectorAll('.btn-type').forEach(b => {
+            state.currentRoom ? b.classList.add('active') : b.classList.remove('active');
+        });
+    }
+
+    function startAddRequest(label) {
+        if (!state.currentRoom) {
+            alert("⚠️ Inserisci prima il numero camera!");
+            return;
+        }
+        state.pendingLabel = label;
+        if (label === 'ALTRO...') {
+            document.getElementById('modal-text').style.display = 'flex';
+            document.getElementById('custom-text').focus();
+        } else {
+            showPriorityModal(label);
+        }
+    }
+
+    function confirmCustomText() {
+        const text = document.getElementById('custom-text').value.trim();
+        if (text) {
+            state.pendingLabel = text.toUpperCase();
+            document.getElementById('modal-text').style.display = 'none';
+            showPriorityModal(state.pendingLabel);
+        } else {
+            closeModals();
+        }
+    }
+
+    function showPriorityModal(label) {
+        document.getElementById('selected-type-label').innerText = label;
+        document.getElementById('modal-priority').style.display = 'flex';
+    }
+
+    function finalizeAdd(priority) {
+        const req = {
+            id: Date.now().toString(),
+            room: state.currentRoom,
+            label: state.pendingLabel,
+            priority: priority,
+            createdAt: Date.now(),
+            status: 'pending'  // pending, working, completed
+        };
+        state.requests.unshift(req);
+        saveAndReset();
+        switchView('queue', document.querySelector('.nav-item:first-child'));
+        closeModals();
+    }
+
+    function changeStatus(id, newStatus) {
+        const req = state.requests.find(r => r.id === id);
+        if (!req) return;
+        req.status = newStatus;
+        if (newStatus === 'completed') {
+            req.completedAt = Date.now();
+        }
+        saveAndReset();
+    }
+
+    // Pulisce tutte le richieste completate dalla coda
+    function clearCompleted() {
+        state.requests = state.requests.filter(r => r.status !== 'completed');
+        saveAndReset();
+    }
+
+    function deleteReq(id) {
+        if (confirm("Eliminare questa richiesta?")) {
+            state.requests = state.requests.filter(r => r.id !== id);
+            saveAndReset();
+        }
+    }
+
+    function switchView(id, btn) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-' + id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function closeModals() {
+        document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+        document.getElementById('custom-text').value = '';
+    }
+
+    function saveAndReset() {
+        localStorage.setItem('resortflow_v4', JSON.stringify(state.requests));
+        state.currentRoom = '';
+        tapKey('C');
+        render();
+    }
+
+    function getElapsed(ts) {
+        return Math.floor((Date.now() - ts) / 60000);
+    }
+
+    function getPriorityIcon(priority) {
+        switch(priority) {
+            case 'Urgente': return '🔴';
+            case 'Normale': return '🟡';
+            case 'Pianificabile': return '🔵';
+            default: return '⚪';
+        }
+    }
+
+    function getPriorityColor(priority) {
+        switch(priority) {
+            case 'Urgente': return '#7f1d1d';
+            case 'Normale': return '#0f172a';
+            case 'Pianificabile': return '#1e3a8a';
+            default: return '#0f172a';
+        }
+    }
+
+    function render() {
+        const pending = state.requests.filter(r => r.status !== 'completed');
+        const completed = state.requests.filter(r => r.status === 'completed');
+
+        const prioMap = { 'Urgente': 4, 'Normale': 2, 'Pianificabile': 1 };
+        pending.sort((a, b) => {
+            if (prioMap[b.priority] !== prioMap[a.priority]) return prioMap[b.priority] - prioMap[a.priority];
+            return a.createdAt - b.createdAt;
+        });
+
+        document.getElementById('stat-pending').innerText = pending.length;
+        document.getElementById('stat-done').innerText = completed.length;
+        
+        const avg = completed.length ? Math.round(completed.reduce((acc, r) => acc + (r.completedAt - r.createdAt), 0) / completed.length / 60000) : 0;
+        document.getElementById('stat-avg').innerText = avg + 'm';
+
+        // RENDER CODA
+        const qList = document.getElementById('queue-list');
+        qList.innerHTML = pending.length ? '' : '<div style="text-align:center; padding:40px; color:#475569; font-weight:700">✅ Tutto gestito. Riposati!</div>';
+        
+        pending.forEach(r => {
+            const min = getElapsed(r.createdAt);
+            const isUrgent = r.priority === 'Urgente';
+            const isOverdue = (isUrgent && min >= 15) || (!isUrgent && min >= 30);
+            
+            if (isOverdue && isUrgent && state.lastBeep !== r.id) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gn = ctx.createGain();
+                    osc.connect(gn); gn.connect(ctx.destination);
+                    osc.frequency.value = 550; gn.gain.value = 0.1;
+                    osc.start(); osc.stop(ctx.currentTime + 0.4);
+                } catch(e) {}
+                state.lastBeep = r.id;
+            }
+
+            const div = document.createElement('div');
+            div.className = `request-item ${isOverdue ? 'overdue' : ''}`;
+            div.innerHTML = `
+                <div class="room-badge"><b>${r.room}</b><span>ROOM</span></div>
+                <div class="req-info">
+                    <h3>${r.label}</h3>
+                    <div class="req-meta">
+                        <span class="tag" style="background:${getPriorityColor(r.priority)}; border:1px solid ${r.priority === 'Urgente' ? '#ef4444' : (r.priority === 'Pianificabile' ? '#3b82f6' : '#334155')}">
+                            ${getPriorityIcon(r.priority)} ${r.priority}
+                        </span>
+                        <span class="tag" style="background:${r.status==='working'?'var(--working)':'rgba(255,255,255,0.05)'}">${r.status==='working'?'▶️ IN CORSO':'⏳ ATTESA'}</span>
+                        <span class="timer-val">${min}m</span>
+                    </div>
+                </div>
+                ${r.status === 'pending' 
+                    ? `<button class="btn-action btn-start" onclick="changeStatus('${r.id}', 'working')">▶️</button>` 
+                    : `<button class="btn-action btn-done" onclick="changeStatus('${r.id}', 'completed')">✓</button>`}
+            `;
+            qList.appendChild(div);
+        });
+
+        // RENDER STORICO (solo completate)
+        const hList = document.getElementById('history-list');
+        hList.innerHTML = completed.length ? '' : '<div style="text-align:center; padding:20px; color:#475569">📭 Ancora nessuna completata.</div>';
+        completed.slice(0, 40).forEach(r => {
+            const dur = Math.round((r.completedAt - r.createdAt) / 60000);
+            const div = document.createElement('div');
+            div.className = 'request-item';
+            div.style.opacity = '0.7';
+            div.innerHTML = `
+                <div class="room-badge" style="width:40px; height:40px; background:#0f172a"><b>${r.room}</b></div>
+                <div class="req-info">
+                    <h3 style="font-size:12px">${r.label} <span style="color:${r.priority==='Urgente'?'#ef4444':'#94a3b8'}">(${r.priority})</span></h3>
+                    <div style="font-size:10px; color:var(--title)">${new Date(r.completedAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} • ${dur}m impiegati</div>
+                </div>
+                <button class="delete-btn" onclick="deleteReq('${r.id}')">🗑️</button>
+            `;
+            hList.appendChild(div);
+        });
+
+        const hourAgo = Date.now() - 3600000;
+        const lastHourCount = completed.filter(r => r.completedAt > hourAgo).length;
+        document.getElementById('report-text').innerText = `📊 Nell'ultima ora: ${lastHourCount} completate. Totale serata: ${completed.length}. Coda attuale: ${pending.length}.`;
+    }
+
+    function copyReport() {
+        const text = document.getElementById('report-text').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert("✅ Report copiato! Incollalo su WhatsApp/chat per il direttore.");
+        });
+    }
+
+    function updateClock() {
+        document.getElementById('header-clock').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    }
+
+    init();
+</script>
+</body>
+</html>
